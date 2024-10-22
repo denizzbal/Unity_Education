@@ -1,0 +1,319 @@
+unity animation coin
+Coin collecting animation 
+Animated coins effect 
+Smooth coin collection animation
+Animated coin collecting mechanism
+Animated coin collection system
+
+arcade idle
+
+
+Yaptığım coin sistemi gösterilecek.
+ve idle oyunlarında ki coin sistemleri kısa kısa gösterilecek.
+---------
+Selam herkese! Bu videoda, popüler mobil oyunlarda sıkça gördüğünüz, para toplama animasyonunu en basit ve anlaşılır
+haliyle sizlere anlatmaya çalışacağım.
+Bu animasyon, oyunculara para topladıkları hissini vererek oyunun görselliğini ve geri bildirim mekanizmasını güçlendiriyor. 
+Dotween kütüphanesini kullanarak Hem oyun sahnesi üzerinden hem de bir UI Panel üzerinden bu sistemin nasıl yapılabileceğini göstericez.
+Ayrıca, videonun sonunda bir object pool sistemi de oluşturacağız. Bu anlatım bir tutorial niteliğinde olacak, adım adım uygulayarak beraber ilerleyeceğiz.
+
+
+---Bu üstteki kısım giriş olarak ayrılacak.
+---------
+
+Ben sahneyi önceden oluşturdum. Sahneyi hızlıca gözden geçirelim ve sonra scriptimizi yazmaya başlayalım.
+Animasyonla para toplama sistemini daha iyi anlamanız için çok basit, mini bir proje yaptım. 
+Sahnede bir top objemiz var. Top objemiz, sahnedeki objelerle temas ettiğinde, para toplama fonksiyonunu çağırıcaz.
+
+Top objesine bağlı BallControl adında bir scriptimiz var. Bu script, top hareketlerini sağlıyor ve çarpışmaları denetliyor.
+Burada çarpıştığımız objenin tagına göre işlem yapıyoruz. Para toplama fonksiyonunu çağrıcağımız yer de aslında burası.
+
+Canvasımız var, CoinStatusBar adında bir image var. Bu, para durum çubuğumuz. Altında
+CoinImage adında para görseli var ve bu para görseli aslında spawn olan coinlerin gideceği hedef transform
+CoinTextScore adında topladığımız coin miktarını ekranda gösterecek bir TextMeshPro öğesi ve
+CoinPrefabParent adında Spawn olacak paraların perıntı olacak boş bir canvas öğesi var.
+Bu parentin altında CoinPrefab adında bir image yani UI objesi var. Bu, bizim spawn edeceğimiz para objesi, 30'a 30 bir image. Bunu prefab haline getirelim.
+Prefab klasörüne sürükleyip bırakıyorum ve prefabımız hazır durumda. Bunu silelim.(prefab yapıldığı zaman hiyeraşide ki siliniyor)
+ve son olarak (koin sörs)CoinSource adında içinde hedefe ulaştığında çıkacak ses kaynağının olduğu (audyo sörs)AudioSource componentinin olduğu objemiz var.
+
+
+
+---Bu üstteki kısım tanıtma kısmı olarak ayrılacak videoda.
+--------
+
+
+
+Artık kodumuzu yazmaya başlayalım.
+
+GameCoinManager adında bir script oluşturup içine girelim.
+
+==> [SerializeField] GameObject coinPrefab;
+Spawn olacak objemizi tanımlıyoruz
+
+==> [SerializeField] Transform coinParent;
+Spawn olacak para objelerinin sahnede daha düzenli durması için Parent objesini tanımlıyoruz. Bu hiyeraşide ki CoinPrefabParent objesidir.
+
+==> [SerializeField] Transform endPos;
+Oluşan paraların animasyonla hareket edeceği hedef konumu tanımlıyoruz. Bu hiyerarşide ki CoinImage UI objesidir. 
+
+==> [SerializeField] float duration;
+Paraların hedefe ulaşması için gereken süreyi tutacak değişkeni tanımlıyoruz.
+
+==> [SerializeField] TextMeshProUGUI coinText;
+Toplanan paraların ekranda gösterilmesi için TextMeshPro türünde değişken tanımlıyoruz.
+
+==> private int totalCoin;
+Toplanan toplam para miktarını tutacak değişken tanımlıyoruz.
+
+==> [SerializeField] float minX, maxX, minY, maxY;
+Paraların rastgele pozisyon aralığında spawn olması için minimum ve maximum değer aralıklarını tanımlayalım.
+
+==> [SerializeField] AudioSource coinSource;
+Paralar hedefe ulaştığında çıkacak ses kaynağı
+
+==> Tween myTween;
+Dotween animasyonlarının üst üste gelip bug olmaması için, Null check yapacağız bunun için bir tween tanımlayalım.
+
+
+
+
+Void Start
+
+==> totalCoin = 0;
+Oyuna başlarken toplanan toplam para miktarını sıfırlıyoruz.
+
+
+Fonksiyonumuzu oluşturmaya başlayalım. CollectCoins adında bir fonksiyon oluşturalım.
+
+
+==> public void CollectCoins(int coinAmount, Vector3 spawnPoint, int coinScore)
+Bu fonksiyon 3 parametre alıyor. 
+İlk parametre int türünde spawn edilecek coin sayısı,
+İkinci parametre Coinlerin spawn olacağı dünya uzayında ki konum, vector3 türünde, biz buraya çarpışma pozisyonunu vereceğiz.
+Üçüncü parametre Spawn olan her bir coinin kaç puan vereceği
+
+==> for (int i = 0; i < coinAmount; i++)
+Bir for döngüsü oluşturuyoruz bu for döngüsü coinAmount kadar dönecek.
+
+==> Vector3 vec = Camera.main.WorldToScreenPoint(spawnPoint); 
+Dünya uzayındaki konumu ekran koordinatlarına çevirmemiz gerekiyor. Çünkü spawn olan paraların gideceği hedef bir UI objesi.
+UI objeleri ekran koordinat sistemi kullanır. Yani basitçe 3 boyutlu bir konumu 2 boyuta çeviriyoruz. 
+Bizim ekranda baktığımız nokta aynı kalıyor sadece koordinat sistemini değiştiriyoruz.
+
+
+
+==> float xPos = vec.x + Random.Range(minX, maxX);
+==> float yPos = vec.y + Random.Range(minY, maxY);
+Coin'leri rastgele x ve y pozisyonuna yerleştirmek değişkenleri oluşturuyoruz. Bu, her coin'in ekranda biraz farklı bir noktada belirmesini sağlayacak.
+xPos ve yPos'u spawn olan objeye pozisyon olarak vereceğiz.
+
+==> GameObject coinSpawn = Instantiate(coinPrefab, coinParent);
+Objemizi spawn edip bir Gameobjeye atadık.
+Burası daha sonra Object Pool ile değişecek. Videonun ana konusunu bölmemek için Object Pool'u videonun sonunda bir bonus olarak yazacağız.
+İlk yazdığımız coinPrefab spawn edilecek obje, ikinci yazdığımız transform türündeki coinParent ise spawn olan paraların parent objesi.
+
+==> coinSpawn.transform.position = new Vector2(xPos, yPos);
+Spawn olan objemizi üstte belirttiğimiz xPos ve yPos koordinatlarına yerleştirelim.
+ 
+
+CoinManager adında bir obje oluşturup scriptimizi buna atayalım ve gerekli atamaları yapalım.
+
+BallControl clasından bu fonksiyonu çağıralım ve şimdiye kadar yazdığımız kodları kontrol edelim.
+
+
+
+
+
+
+Şimdi animasyon işlemine geçelim, Spawn olan para objemize, Dotween kütüphanesinde ki DoPunchPosition fonksiyonu ile y yönünde kısa bir punch hareketi yaptıracağız. 
+Bu punch hareketi sanki dışarıdan bir darbe gelmiş gibi kısa bir titreşim etkisi gösterir.
+İki parametre vereceğiz, ilk parametre vector3 türünde punch değeri, ikinci parametre ise float türünde punch animasyon süresi
+
+==> coinSpawn.transform.DOPunchPosition(new Vector3(0, 35, 0), Random.Range(0f, 1f))
+Dotween animasyonlarının hızlanma/yavaşlama eğrisini belirlemek için Ease'ler kullanıyoruz. Bu Ease'ler animasyona daha dinamik bir his kazandırıyor.
+Biz burada Ease.InExpo kullancağız, InExpo yavaş başlayan ve aniden hızlanan bir ease'dir. 
+Diğer ease'lerin nasıl hareket ettiğini görmek isterseniz video altına ease'lerin gösterildiği web sitesini yazıcam.
+https://easings.net' de tüm ease'leri görebilirsiniz.
+
+==> .SetEase(Ease.InExpo);
+Buraya kadar kaydedip sahnemize dönelim ve oyunumuzu bir test edelim.
+İstediğimiz punch animasyonu çalışıyor.
+Evet şu anda sistemimiz işlevini yapıyor.Devam edelim.
+Bu animasyon bittiğinde sıradaki animasyona geçmemiz gerekiyor. Bu animasyonun bittiğini OnComplete fonksiyonuyla anlayabiliriz. 
+==> .Complete(()=> 
+{
+
+});
+Süslü parantezler içine yazdığımız kodlar, bu animasyon bittiğinde çalışacaktır. Sıradaki animasyonumuz coinSpawn objemizi hedefe doğru hareket ettirmektir. 
+Bu hareketi DoMove fonksiyonuyla yapacağız. 
+İki parametre veriyoruz. 
+İlk parametre Vector3 türünde hedef pozisyonu belirtiyor, ikinci parametre ise float türünde hedefe gidiş süresini belirtiyor
+==> coinSpawn.transform.DOMove(endPosition.position, duration).SetEase(Ease.InQuint).OnComplete(()=>{});
+Bu animasyonda bittiğinde spawn olan objemizi yok edelim.
+==> Destroy(coinSpawn);
+Burasını da object pool yaparken değiştireceğiz.
+
+CoinSpawn objemiz hedefe ulaştığında bir ses oynatalım.
+Seslerin üst üste binmemesi için bir şart koyalım. 
+    // coinSource değişkeni null ise audio source bileşeninin atanmamış olduğunu veya bulunmadığını gösterir.
+    // coinSource değişkeni null değilse bir Audio source bileşeni atanmış demektir.
+			if (coinSource != null)
+                           coinSource.PlayOneShot(coinSource.clip); // Sesimiz oynasın.
+
+
+
+sonraki işlem endPos objemize yani hedef objemize DoPunchScale yaparak küçük bir büyüme animasyonu yapmasını sağlamak.
+Bu fonksiyona 2 parametre vereceğiz. İlk parametre vector3 türünde, yazdığımız değeri şu an ki transform değerine ekliyor, İkinci parametre ise animasyon süresi
+==> endPos.transform.DOPunchScale(new Vector3(0.5f, 0.5f, 0.5f), 0.05f).SetEase(Ease.InOutElastic).OnComplete(() =>
+{
+});
+
+Bu DoPunchScale işleminde bir bug olmaması için bir tweene atayacağız, tween null ise DoPunchScale fonksiyonu çalışacak. Bunu da null atama operatörü ile yapabiliriz.
+
+==> dtween ??= endPos.transform.DOPunchScale(new Vector3(0.5f, 0.5f, 0.5f), 0.05f).SetEase(Ease.InOutElastic)
+Yine bug önleme olarak endPos objemizin scale değerine varsayılan değerini veriyoruz.
+==> endPos.localScale = Vector3.one;
+
+tweenimizi tekrar null yapıyoruz.
+==> dtween = null;
+
+parametre olarak verdiğimiz coinScore değerini totalCoin değişkeninin üstüne bu fonksiyon her çağrıldığında ekliyoruz.
+==> totalCoin += coinScore;
+
+ve ekranda scorumuzun görünmesi için totalCoin değişkenimiz değerini string'e çevrilmiş olarak coinText'e atıyoruz.
+==> coinText.text = totalCoin.ToString();
+
+Kodumuzu çalıştıralım.
+
+coinSpawn.transform.DOMove(endPos.position, duration).SetEase(Ease.InExpo).OnComplete(() =>
+{
+    Destroy(coinSpawn);
+
+    dtween ??= endPos.transform.DOPunchScale(new Vector3(0.4f, 0.4f, 0.4f), 0.1f).SetEase(Ease.InOutElastic).OnComplete(() =>
+    {
+        endPos.localScale = Vector3.one;
+        dtween = null;
+    });
+
+
+    totalCoin += coinScore;
+    coinText.text = totalCoin.ToString();
+
+
+
+});
+
+
+
+UI üzerinden bu sistem nasıl yapılır ona bakalım.
+Stardat bir panel, bu panelin içinde 4 adet buton var. Butonlara basıldığında butonların altındaki sayılara göre coin üreteceğiz.
+
+MainCoinManager adında bir script oluşturuyoruz. Hiyeraşide boş bir GameObje oluşturup onun içine atalım ve Scriptimizi açalım.
+GameCoinManager clasının içinde ki tüm kodları kopyalayıp bu class içine yapıştıralım.
+Burada değiştireceğimiz yer Dünya pozisyonunu ekran pozisyonuna çevirdiğimiz yer.
+==> WordToScreenPoint kodunu silip Vector3'e direkt spawnPoint'i atacağız.
+
+
+
+Panelimizde ki butonlar için int türünde parametre alan CoinPurÇıs (CoinPurchase) adında bir fonksiyon oluşturalım.
+
+private void CoinPurchase(int coinNumber)
+{
+	Mouse pozisyonunu CollectCoins fonksiyonuna parametre olarak veriyoruz. Coinler mouse pozisyonunu referans alarak spawn olacak.
+	
+    Vector3 vec = Input.mousePosition;
+    CollectCoins(coinNumber, vec, 10);
+}
+
+Butonların OnClick componentine MainCoinManager scriptinin bağlı olduğu GameObjeyi atıyoruz ve içindeki yazmış olduğumuz CoinPurÇıs fonksiyonunu seçiyoruz.
+Burada yazdığımız sayı kadar coin üretilecek. Önceden belirlediğimiz sayıları yazıyoruz.
+Diğer butonlar için de aynı işlemi yapalım.
+Ve kodumuzu deneyelim. Şu anda iyi çalışıyor.
+
+*Eksik olan ne var; efekt ekleyebiliriz. Efekt, para toplama hissini oyuncuya daha fazla gösterir.  
+*Ancak ben efekt eklemeyip, bunu size bırakıyorum.
+Particle effectlerinin Canvas'da yani UI üzerinde kullanımı için video altına bir paket linki bırakıyorum. 
+Bu paket github üzerinde ve ücretsizdir. Kullanımı da kolaydır. Bunu kullanarak kolayca efektlerinizi canvas da gösterebilirsiniz.
+
+https://github.com/mob-sakai/ParticleEffectForUGUI
+
+
+Bonus olarak Game sahnesinde bir object pool oluşturalım. 
+Bu object pool çok basit olacak.
+Object Pooling Mantığı ise
+
+Oyunlarda aynı türden birçok nesneyi sürekli olarak sahnede üretip yok etmek, performans açısından oldukça maliyetlidir. 
+Özellikle çok sayıda tekrar eden nesnelerin kullanıldığı sahnelerde SİPİYU (CPU) ve bellek kullanımını önemli ölçüde optimize eder.
+Object Pooling yöntemiyle bu nesneleri sahne başında bir dizi, list veya quu'ya ekliyoruz. 
+Bu nesneleri başlangıçta sahnede oluşturup, görünürlüğünü kapatıyoruz.
+Daha sonra, ihtiyacımız olduğunda bu nesnelerin görünürlüğünü açarak sahnede kullanıyoruz. 
+İşimiz bittiğinde ise, onları tekrar görünmez hale getirip havuza geri koyuyoruz. 
+Böylece, her seferinde yeni nesneler oluşturup yok etmekten kaçınıyoruz, bu da oyun performansını ciddi anlamda artırıyor.
+
+GameCoinManager clasımızın içinde havuzu oluşturalım.
+
+private List<GameObject> CoinAnimPrefabList = new();
+Listimizi oluşturduk.
+
+
+Başlangıçta 40 adet coin üretelim.
+Bu üretilen coinleri, tanımladığımız CoinPrefabList'e ekleyip, görünürlüğünü kapatalım.
+for (int i = 0; i < 40; i++)
+    {
+        CoinAnimPrefabList.Add(Instantiate(CoinAnimPrefab, ConAnimParent));
+        CoinAnimPrefabList[i].gameObject.SetActive(false);
+    }
+	
+
+Coinlerimizi havuzdan çekmek için bir Gameobject türünde değer dönderen bir fonksiyon oluşturalım. Bu fonksiyona vector3 türünde bir parametre gelecek.
+Bu parametre coinlerin spawn olacağı dünya konumu. Fonksiyonu çağırdığımızda bu değeri vereceğiz.
+
+Bu fonksiyon ile liste içinde ki aktif olmayan ilk objeyi bulup, onu kullanmak için aktif yapıyoruz.
+Objenin, pozisyon ve rotasyon bilgilerini ayarlıyoruz
+Havuzda aktif obje yoksa, fonksiyonu null dönderiyoruz
+
+private GameObject CoinPool(vec)(Vector3 pos)
+
+{
+    foreach (var item in CoinAnimPrefabList)  //liste içindeki tüm elemanlara işlem yapmak için foreach döngüsü kullanıyoruz.
+    {
+        if (!item.activeSelf)  //liste içinde ki ilk aktif olmayan objeyi buluyoruz.
+        {
+            item.SetActive(true); //objenin görünürlüğü açıyoruz.
+            item.transform.SetLocalPositionAndRotation(pos, Quaternion.identity); //objeye pozisyon ve rotasyon bilgilerini veriyoruz.
+            return item; // objeyi dönderiyoruz.
+        }
+    }
+    return null; //havuzda aktif obje yoksa, null dönderiyoruz.
+}
+
+Fonksiyonumuz tamam, şimdi ise fonksiyonumuzu çağıralım. Peki nerede çağırıcağız. Burada,
+Instantiate kodunu silelim. CoinPool(vec); fonksiyonu yazalım ve parametre olarak spawnLocation'ın ekran koordinatlarına çevrilmiş
+değerlerini tutan "vec" isimli vector3'ü verelim.
+
+==> GameObject coinSpawn = CoinPool(vec);
+
+Son işlem ise animasyonu biten coinlerimizi distroy ile yok ediyoduk. Biz yok etmeyeceğiz, tekrar kullanmak için objenin görünürlüğünü deaktif yapıcaz.
+
+Obje havuzumuzun çalışıp çalışmadığını kontrol edelim.
+Çarpışma olduğunda deaktif olan objeler aktif oluyor, animasyon bittiğinde ise o objeler tekrar kullanılmak için deaktif oluyor.
+Obje havuzumuz çok iyi çalışıyor. 
+
+"Eğitimimizin sonuna geldik. Umarım 'Animasyon ile Para Toplama Sistemi'ni tüm detaylarıyla anlamışsınızdır. 
+İzlediğiniz için çok teşekkür ederim, desteğiniz benim için gerçekten çok değerli. 
+Aklınıza takılan soruları yorumlarda paylaşabilirsiniz, cevaplamaktan memnuniyet duyarım. Bir sonraki videoda görüşmek üzere, hoşça kalın!"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
