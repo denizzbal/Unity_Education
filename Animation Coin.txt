@@ -153,12 +153,14 @@ Bu animasyonda bittiğinde spawn olan objemizi yok edelim.
 ==> Destroy(coinSpawn);
 Burasını da object pool yaparken değiştireceğiz.
 
-CoinSpawn objemiz hedefe ulaştığında bir ses oynatalım.
-Seslerin üst üste binmemesi için bir şart koyalım. 
+CoinSpawn objemiz hedefe ulaştığında bir ses dosyası oynatalım.
     // coinSource değişkeni null ise audio source bileşeninin atanmamış olduğunu veya bulunmadığını gösterir.
     // coinSource değişkeni null değilse bir Audio source bileşeni atanmış demektir.
-			if (coinSource != null)
-                           coinSource.PlayOneShot(coinSource.clip); // Sesimiz oynasın.
+			if (coinSource != null)  
+                           coinSource.PlayOneShot(coinSource.clip); // 
+		// bir şart koyduk buraya, koinsörs null değilse yani içinde bir audyo sörs bileşeni varsa boş değilse  dedik
+		// altında da sesimizi oynattık. Peki neden play değilde playOneshot dedik, 
+		çünkü PlayOneShot ile koin seslerini biraz üst üste bindirdik, gerçekçi dursun diye. 
 
 
 
